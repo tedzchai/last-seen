@@ -7,6 +7,7 @@
   "dependencies": {
     "@aws-sdk/client-s3": "^3.893.0",
     "@googlemaps/google-maps-services-js": "^3.4.2",
+    "dotenv": "^17.2.2",
     "googleapis": "^160.0.0",
     "openai": "^5.22.0",
     "tsx": "^4.20.5",
