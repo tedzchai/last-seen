@@ -1,0 +1,15 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Local environment variables
+.env
+
+# Logs
+npm-debug.log*
+pnpm-debug.log*
+
+# MacOS Finder junk
+.DS_Store
