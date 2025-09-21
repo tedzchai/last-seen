@@ -1,0 +1,23 @@
+name: Incremental Publish
+on:
+  schedule: [ { cron: "0 */3 * * *" } ]  # every 3 hours
+  workflow_dispatch: {}
+jobs:
+  inc:
+    runs-on: ubuntu-latest
+    env:
+      TZ: America/Los_Angeles
+      GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+      GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+      GOOGLE_REFRESH_TOKEN: ${{ secrets.GOOGLE_REFRESH_TOKEN }}
+      GOOGLE_CALENDAR_ID: ${{ secrets.GOOGLE_CALENDAR_ID }}
+      AWS_S3_BUCKET: ${{ secrets.AWS_S3_BUCKET }}
+      AWS_S3_REGION: ${{ secrets.AWS_S3_REGION }}
+      LOOKBACK_HOURS: "12"
+      INCREMENTAL_ALLOW_LLM: "false"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+      - run: npm ci
+      - run: npm run inc
