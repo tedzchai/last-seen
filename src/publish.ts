@@ -17,7 +17,12 @@ export async function publish(obj: any) {
       Key: 'last-seen.json',
       Body: JSON.stringify(obj, null, 2),
       ContentType: 'application/json',
-      ACL: 'public-read',
     })
+  );
+
+  // ✅ Optional: log the public URL for quick verification
+  const region = CFG.AWS_S3_REGION || process.env.AWS_S3_REGION || 'us-east-2';
+  console.log(
+    `Published to https://${CFG.AWS_S3_BUCKET}.s3.${region}.amazonaws.com/last-seen.json`
   );
 }
