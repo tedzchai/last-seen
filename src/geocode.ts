@@ -1,7 +1,4 @@
-import { Client, PlaceInputType } from '@googlemaps/google-maps-services-js';
 import { CFG } from './config';
-
-const maps = new Client({});
 
 export type Geo = {
   place: string;
@@ -14,52 +11,52 @@ export type Geo = {
 export async function normalizePlace(q: string): Promise<Geo> {
   if (!CFG.GOOGLE_MAPS_API_KEY) return { place: q, ok: true };
 
-  // Step 1: find candidate
-  const found = await maps.findPlaceFromText({
-    params: {
-      input: q,
-      inputtype: PlaceInputType.textQuery,
-      fields: ['name','formatted_address','place_id'],
-      key: CFG.GOOGLE_MAPS_API_KEY
-    }
+  // Step 1: search place
+  const searchRes = await fetch("https://places.googleapis.com/v1/places:searchText", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Goog-Api-Key": CFG.GOOGLE_MAPS_API_KEY,
+      "X-Goog-FieldMask": "places.id,places.displayName,places.formattedAddress",
+    },
+    body: JSON.stringify({ textQuery: q }),
   });
-  const cand = found.data.candidates?.[0];
-  if (!cand?.place_id) return { place: q, ok: true };
 
-  // Step 2: get details (with address components)
-  const det = await maps.placeDetails({
-    params: {
-      place_id: cand.place_id,
-      fields: ['types','url','name','formatted_address','address_components'],
-      key: CFG.GOOGLE_MAPS_API_KEY
-    }
+  const searchData = await searchRes.json();
+  const cand = searchData.places?.[0];
+  if (!cand?.id) return { place: q, ok: true };
+
+  // Step 2: get details
+  const detailRes = await fetch(`https://places.googleapis.com/v1/places/${cand.id}?fields=displayName,formattedAddress,addressComponents,googleMapsUri`, {
+    headers: {
+      "X-Goog-Api-Key": CFG.GOOGLE_MAPS_API_KEY,
+    },
   });
-  const d = det.data.result;
+  const d = await detailRes.json();
 
   let city: string | undefined;
   let state: string | undefined;
 
-  if (d?.address_components) {
-    for (const c of d.address_components) {
-      // Use string types directly since Google Maps API returns string literals
+  if (d.addressComponents) {
+    for (const c of d.addressComponents) {
       const types = c.types as string[];
-      if (types.includes('locality')) city = c.long_name;
-      if (types.includes('administrative_area_level_1')) state = c.long_name;
+      if (types.includes("locality")) city = c.longText;
+      if (types.includes("administrative_area_level_1")) state = c.longText;
     }
   }
 
-  // Fallback: parse formatted_address
-  if ((!city || !state) && d?.formatted_address) {
-    const parts = d.formatted_address.split(',').map(p => p.trim());
-    if (!city && parts.length >= 2) city = parts[parts.length-2];
-    if (!state && parts.length >= 1) state = parts[parts.length-1];
+  // fallback: parse formattedAddress
+  if ((!city || !state) && d.formattedAddress) {
+    const parts = d.formattedAddress.split(",").map((p: string) => p.trim());
+    if (!city && parts.length >= 2) city = parts[parts.length - 2];
+    if (!state && parts.length >= 1) state = parts[parts.length - 1];
   }
 
   return {
-    place: d?.name || q,
+    place: d.displayName?.text || q,
     city,
     state,
-    mapUrl: d?.url,
-    ok: true
+    mapUrl: d.googleMapsUri,
+    ok: true,
   };
 }
