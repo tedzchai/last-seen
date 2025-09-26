@@ -60,7 +60,6 @@ export async function writeCache(cache: Cached) {
       Key: KEY,
       Body: JSON.stringify(cache, null, 2),
       ContentType: 'application/json',
-      ACL: 'public-read',
     })
   );
 }
