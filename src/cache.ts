@@ -15,12 +15,13 @@ export type Cached = {
 };
 
 // ✅ S3 client with proper region + credentials fallback
+const region = CFG.AWS_S3_REGION || process.env.AWS_S3_REGION || 'us-east-2';
 const s3 = new S3Client({
-  region: CFG.AWS_S3_REGION || process.env.AWS_S3_REGION || 'us-east-2',
-  credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID || '',
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || '',
-  },
+  region,
+  credentials: process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY ? {
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+  } : undefined,
 });
 
 const KEY = 'normalized-cache.json';
