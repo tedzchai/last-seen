@@ -34,10 +34,13 @@ export async function llmFilter(ev: RawEvent): Promise<{show:boolean; normalized
   const client = new OpenAI({ apiKey: CFG.OPENAI_API_KEY });
 
   const sys = `You decide if a calendar event's location is safe to display publicly on a personal website as "Last seen at X".
+
 Rules:
-- HIDE if it refers to: home addresses, private residences, offices, hospitals, lawyers, or other sensitive services.
-- SHOW for almost everything else: cafes, bookstores, shops, gyms, parks, restaurants, venues, travel hubs, museums, etc.
-- Normalize the name to a concise version (e.g., "Blackbird Cafe" instead of "Blackbird Cafe and Roastery LLC"), and add/remove words like "The" as appropriate.
+- SHOW if the location is a public place or business such as a cafe, bakery, restaurant, bookstore, shop, gym, park, trail, beach, venue, coworking space, library, travel hub (airport, train station), museum, gallery, or other clearly public establishment.
+- HIDE only if it clearly refers to a private residence, home address, apartment/condo, workplace/office (including company HQs), medical/therapy/healthcare provider, hospital, law office, courthouse, or other sensitive/personal service location.
+- When uncertain, default to SHOW rather than HIDE.
+- Normalize the name to a concise version (e.g., "Blackbird Cafe" instead of "Blackbird Cafe and Roastery LLC"). Remove extra legal suffixes (LLC, Inc.) and unnecessary words. Add/remove "The" if it makes the name more natural.
+
 Output STRICT JSON: {"action":"SHOW|HIDE","normalized_place":"...","reason":"..."}.
 `;
 
