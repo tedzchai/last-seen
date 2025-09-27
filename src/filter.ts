@@ -48,6 +48,9 @@ Output STRICT JSON: {"action":"SHOW|HIDE","normalized_place":"...","reason":"...
 Location: ${ev.location ?? ''}
 Description: ${ev.description ?? ''}`;
 
+console.log("---- LLM INPUT ----");
+console.log(user);
+
   const r = await client.chat.completions.create({
     model: 'gpt-4o-mini',
     temperature: 0,
@@ -55,6 +58,9 @@ Description: ${ev.description ?? ''}`;
     response_format: { type: 'json_object' }
   });
 
+  console.log("---- LLM OUTPUT ----");
+  console.log(r.choices[0].message.content);
+  
   const json = JSON.parse(r.choices[0].message.content!);
   const parsed = Out.safeParse(json);
   if (!parsed.success) return { show:false, why:'parse-fail' };
