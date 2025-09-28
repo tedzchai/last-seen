@@ -12,15 +12,30 @@ export async function runIncremental() {
   const tMax = now;
 
   const events = await listEvents(iso(tMin), iso(tMax));
-  const chosen = pickLatestCompleted(events, now, CFG.LOOKBACK_HOURS);
-  if (!chosen) { await publish({ place: 'Somewhere', updated: now.toISOString() }); return; }
-
   const cache = await loadCache();
+
+  // pass cache into pickLatestCompleted
+  const chosen = pickLatestCompleted(events, now, CFG.LOOKBACK_HOURS, cache);
+
+  console.log("Incremental chosen event:", {
+    title: chosen?.summary,
+    location: chosen?.location,
+    start: chosen?.start,
+    end: chosen?.end
+  });
+
+  if (!chosen) {
+    await publish({ place: 'Somewhere', updated: now.toISOString() });
+    return;
+  }
+
   const c = getCached(cache, chosen);
+  console.log("Cache lookup result:", c);
+
   if (c?.action === 'SHOW' && c.place) {
     await publish({
       place: c.place,
-      city:  c.city,
+      city: c.city,
       mapUrl: c.mapUrl,
       updated: now.toISOString(),
       eventTime: eventInstant(chosen)?.toISOString()
@@ -29,8 +44,12 @@ export async function runIncremental() {
     return;
   }
 
-  // Strict hybrid: no LLM here; skip to avoid leaks/cost.
-  console.log('Chosen event not in cache; skipping publish (will appear after next daily batch).');
+  console.log('Chosen event not in cache or not SHOW; skipping publish.');
 }
 
-if (require.main === module) runIncremental().catch(e => { console.error(e); process.exit(1); });
+if (require.main === module) {
+  runIncremental().catch(e => {
+    console.error(e);
+    process.exit(1);
+  });
+}
