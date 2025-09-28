@@ -2,8 +2,7 @@ import { CFG } from './config';
 
 export type Geo = {
   place: string;
-  city?: string;
-  state?: string;
+  city?: string;   // actually city + state combined for display
   mapUrl?: string;
   ok: boolean;
 };
@@ -27,11 +26,10 @@ export async function normalizePlace(q: string): Promise<Geo> {
   if (!cand?.id) return { place: q, ok: true };
 
   // Step 2: get details
-  const detailRes = await fetch(`https://places.googleapis.com/v1/places/${cand.id}?fields=displayName,formattedAddress,addressComponents,googleMapsUri`, {
-    headers: {
-      "X-Goog-Api-Key": CFG.GOOGLE_MAPS_API_KEY,
-    },
-  });
+  const detailRes = await fetch(
+    `https://places.googleapis.com/v1/places/${cand.id}?fields=displayName,formattedAddress,addressComponents,googleMapsUri`,
+    { headers: { "X-Goog-Api-Key": CFG.GOOGLE_MAPS_API_KEY } }
+  );
   const d = await detailRes.json();
 
   let city: string | undefined;
@@ -52,10 +50,12 @@ export async function normalizePlace(q: string): Promise<Geo> {
     if (!state && parts.length >= 1) state = parts[parts.length - 1];
   }
 
+  // ✅ Merge into one display string
+  const cityState = [city, state].filter(Boolean).join(", ");
+
   return {
     place: d.displayName?.text || q,
-    city,
-    state,
+    city: cityState || undefined,
     mapUrl: d.googleMapsUri,
     ok: true,
   };
