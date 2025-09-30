@@ -25,8 +25,8 @@ export async function runIncremental() {
   });
 
   if (!chosen) {
-    await publish({ place: 'Somewhere', updated: now.toISOString() });
-    return;
+    console.log('No recent public events found; keeping current published state');
+    return; // Don't publish anything - preserve existing state
   }
 
   const c = getCached(cache, chosen);
