@@ -4,23 +4,25 @@ import type { RawEvent } from './calendar';
 import { CFG } from './config';
 
 const denyKeywords = [
-  'doctor','dentist','clinic','hospital','therapy','therapist','optometry','dermatology',
-  'attorney','law','court','notary',
-  'home','apartment','condo','residence','unit','suite','ste',
-  'office','hq','headquarters'
+  'home','apartment','condo','residence','unit #','suite #','apt #'
 ];
 
-const isVirtual = (s: string) => /(zoom|google meet|teams|meet\.google|zoom\.us)/i.test(s);
-const looksAddress = (s: string) =>
-  /\d{1,6}\s+.+\b(St|Ave|Blvd|Rd|Road|Street|Avenue|Boulevard|Lane|Ln|Dr|Drive)\b/i.test(s);
+const isVirtual = (s: string) => {
+  // Only reject if it's PURELY virtual (no physical address)
+  const hasZoom = /(zoom|teams|meet\.google|zoom\.us)/i.test(s);
+  const hasPhysicalAddress = /\d+\s+.+\b(St|Ave|Blvd|Rd|Road|Street|Avenue|Boulevard|Lane|Ln|Dr|Drive)\b/i.test(s);
+  return hasZoom && !hasPhysicalAddress;
+};
 
 export function heuristicFilter(ev: RawEvent): { pass: boolean; why?: string } {
   const blob = [ev.summary, ev.description, ev.location].filter(Boolean).join(' ').toLowerCase();
   if (ev.status === 'cancelled') return { pass:false, why:'cancelled' };
   if (!ev.location) return { pass:false, why:'no-location' };
   if (isVirtual(ev.location)) return { pass:false, why:'virtual' };
-  if (looksAddress(ev.location)) return { pass:false, why:'raw-address' };
+
+  // Only block obvious residential keywords
   if (denyKeywords.some(k => blob.includes(k))) return { pass:false, why:'denylist' };
+
   return { pass:true };
 }
 
