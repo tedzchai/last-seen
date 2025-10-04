@@ -10,6 +10,26 @@ export type Geo = {
 export async function normalizePlace(q: string): Promise<Geo> {
   if (!CFG.GOOGLE_MAPS_API_KEY) return { place: q, ok: true };
 
+  // If the location already looks like a complete address, use it as-is
+  const hasAddress = /\d+\s+.+\b(St|Ave|Blvd|Rd|Road|Street|Avenue|Boulevard|Lane|Ln|Dr|Drive)\b/i.test(q);
+  const hasCity = /,\s*[A-Za-z\s]+,?\s*[A-Z]{2}\b/.test(q); // Has city, state pattern
+
+  if (hasAddress && hasCity) {
+    console.log(`📍 Using complete address as-is: "${q}"`);
+    // Extract business name (everything before the first comma or address)
+    const businessName = q.split(/,|\d+\s+/)[0].trim();
+    // Extract city/state (everything after last comma)
+    const parts = q.split(',').map(p => p.trim());
+    const cityState = parts.length >= 2 ? parts.slice(-2).join(', ') : undefined;
+
+    return {
+      place: businessName || q,
+      city: cityState,
+      mapUrl: `https://www.google.com/maps/search/${encodeURIComponent(q)}`,
+      ok: true
+    };
+  }
+
   // Step 1: search place with geographic bias
   const searchRes = await fetch("https://places.googleapis.com/v1/places:searchText", {
     method: "POST",
@@ -47,7 +67,7 @@ export async function normalizePlace(q: string): Promise<Geo> {
 
   // Step 2: get details
   const detailRes = await fetch(
-    `https://places.googleapis.com/v1/places/${cand.id}?fields=displayName,formattedAddress,addressComponents,googleMapsUri`,
+    `https://places.googleapis.com/v1/places/${cand.id}?fields=displayName,formattedAddress,addressComponents,googleMapsUri,location`,
     { headers: { "X-Goog-Api-Key": CFG.GOOGLE_MAPS_API_KEY } }
   );
   const d = await detailRes.json();
@@ -79,6 +99,26 @@ export async function normalizePlace(q: string): Promise<Geo> {
     mapUrl: d.googleMapsUri,
     ok: true,
   };
+
+  // Validate result is in reasonable proximity to SF Bay Area
+  const sfLatLng = { lat: 37.7749, lng: -122.4194 };
+  if (d.location) {
+    const resultLat = d.location.latitude;
+    const resultLng = d.location.longitude;
+
+    // Calculate rough distance (not precise, but good enough for validation)
+    const latDiff = Math.abs(resultLat - sfLatLng.lat);
+    const lngDiff = Math.abs(resultLng - sfLatLng.lng);
+    const roughDistance = Math.sqrt(latDiff * latDiff + lngDiff * lngDiff);
+
+    // If result is very far from SF Bay Area, log a warning
+    if (roughDistance > 1.0) { // ~100km rough threshold
+      console.log(`⚠️  WARNING: Geocoded location seems far from SF Bay Area:`);
+      console.log(`   Query: "${q}"`);
+      console.log(`   Result: ${result.place} at ${d.formattedAddress}`);
+      console.log(`   Distance indicator: ${roughDistance.toFixed(2)} (>1.0 = far)`);
+    }
+  }
 
   console.log(`✅ Final geocoding result:`, result);
   return result;

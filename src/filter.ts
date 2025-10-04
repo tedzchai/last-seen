@@ -42,6 +42,7 @@ Rules:
 - HIDE only if it clearly refers to a private residence, home address, apartment/condo, workplace/office (including company HQs), medical/therapy/healthcare provider, hospital, law office, courthouse, or other sensitive/personal service location.
 - When uncertain, default to SHOW rather than HIDE.
 - Normalize the name to a concise version (e.g., "Blackbird Cafe" instead of "Blackbird Cafe and Roastery LLC"). Remove extra legal suffixes (LLC, Inc.) and unnecessary words. Add/remove "The" if it makes the name more natural.
+- IMPORTANT: If the location includes a complete address (street address + city + state), preserve the full address exactly as provided. Do not strip address details for businesses with specific locations.
 
 Output STRICT JSON: {"action":"SHOW|HIDE","normalized_place":"...","reason":"..."}.
 `;
