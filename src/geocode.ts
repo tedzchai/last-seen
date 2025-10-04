@@ -10,7 +10,7 @@ export type Geo = {
 export async function normalizePlace(q: string): Promise<Geo> {
   if (!CFG.GOOGLE_MAPS_API_KEY) return { place: q, ok: true };
 
-  // Step 1: search place
+  // Step 1: search place with geographic bias
   const searchRes = await fetch("https://places.googleapis.com/v1/places:searchText", {
     method: "POST",
     headers: {
@@ -18,12 +18,32 @@ export async function normalizePlace(q: string): Promise<Geo> {
       "X-Goog-Api-Key": CFG.GOOGLE_MAPS_API_KEY,
       "X-Goog-FieldMask": "places.id,places.displayName,places.formattedAddress",
     },
-    body: JSON.stringify({ textQuery: q }),
+    body: JSON.stringify({
+      textQuery: q,
+      // Bias results toward SF Bay Area (user's location)
+      locationBias: {
+        circle: {
+          center: { latitude: 37.7749, longitude: -122.4194 }, // SF coordinates
+          radius: 50000 // 50km radius to cover Bay Area
+        }
+      }
+    }),
   });
 
   const searchData = await searchRes.json();
+
+  // Debug logging to help trace geocoding issues
+  console.log(`🔍 Geocoding query: "${q}"`);
+  console.log(`📍 Found ${searchData.places?.length || 0} places`);
+  if (searchData.places?.length > 0) {
+    console.log(`🥇 Top result: ${searchData.places[0].displayName?.text} - ${searchData.places[0].formattedAddress}`);
+  }
+
   const cand = searchData.places?.[0];
-  if (!cand?.id) return { place: q, ok: true };
+  if (!cand?.id) {
+    console.log(`❌ No valid place found for: "${q}"`);
+    return { place: q, ok: true };
+  }
 
   // Step 2: get details
   const detailRes = await fetch(
@@ -53,10 +73,13 @@ export async function normalizePlace(q: string): Promise<Geo> {
   // ✅ Merge into one display string
   const cityState = [city, state].filter(Boolean).join(", ");
 
-  return {
+  const result = {
     place: d.displayName?.text || q,
     city: cityState || undefined,
     mapUrl: d.googleMapsUri,
     ok: true,
   };
+
+  console.log(`✅ Final geocoding result:`, result);
+  return result;
 }
