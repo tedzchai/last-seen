@@ -13,9 +13,11 @@ export type RawEvent = {
 };
 
 function client() {
-  const o = new google.auth.OAuth2(CFG.GOOGLE_CLIENT_ID, CFG.GOOGLE_CLIENT_SECRET);
-  o.setCredentials({ refresh_token: CFG.GOOGLE_REFRESH_TOKEN });
-  return google.calendar({ version: 'v3', auth: o });
+  const auth = new google.auth.GoogleAuth({
+    credentials: CFG.GOOGLE_SERVICE_ACCOUNT_KEY ? JSON.parse(CFG.GOOGLE_SERVICE_ACCOUNT_KEY) : undefined,
+    scopes: ['https://www.googleapis.com/auth/calendar.readonly'],
+  });
+  return google.calendar({ version: 'v3', auth });
 }
 
 export async function listEvents(timeMinISO: string, timeMaxISO: string, maxResults=100): Promise<RawEvent[]> {

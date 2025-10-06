@@ -5,9 +5,7 @@ const num = (s: string|undefined, d: number) => s ? Number(s) : d;
 export const CFG = {
   TZ: process.env.TZ ?? 'America/Los_Angeles',
   CALENDAR_ID: process.env.GOOGLE_CALENDAR_ID ?? 'primary',
-  GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID!,
-  GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET!,
-  GOOGLE_REFRESH_TOKEN: process.env.GOOGLE_REFRESH_TOKEN!,
+  GOOGLE_SERVICE_ACCOUNT_KEY: process.env.GOOGLE_SERVICE_ACCOUNT_KEY!,
 
   OPENAI_API_KEY: process.env.OPENAI_API_KEY!,
   GOOGLE_MAPS_API_KEY: process.env.GOOGLE_MAPS_API_KEY!,
