@@ -18,9 +18,36 @@ export async function normalizePlace(q: string): Promise<Geo> {
     console.log(`📍 Using complete address as-is: "${q}"`);
     // Extract business name (everything before the first comma or address)
     const businessName = q.split(/,|\d+\s+/)[0].trim();
-    // Extract city/state (everything after last comma)
+    // Extract city and state from address components
     const parts = q.split(',').map(p => p.trim());
-    const cityState = parts.length >= 2 ? parts.slice(-2).join(', ') : undefined;
+
+    let city = undefined;
+    let state = undefined;
+
+    // Look for city and state pattern in the parts
+    for (const part of parts) {
+      // Match state pattern (2 letter code optionally followed by zip)
+      const stateMatch = part.match(/^([A-Z]{2})\b/);
+      if (stateMatch && !state) {
+        state = stateMatch[1];
+        // Look for city in previous parts
+        const cityIndex = parts.indexOf(part) - 1;
+        if (cityIndex >= 0) {
+          city = parts[cityIndex];
+        }
+        break;
+      }
+    }
+
+    // Expand state abbreviation to full name for consistency with geocoding API
+    const stateNames: {[key: string]: string} = {
+      'CA': 'California', 'NY': 'New York', 'TX': 'Texas', 'FL': 'Florida',
+      'WA': 'Washington', 'OR': 'Oregon', 'NV': 'Nevada', 'AZ': 'Arizona'
+      // Add more as needed
+    };
+    const fullStateName = state && stateNames[state] ? stateNames[state] : state;
+
+    const cityState = [city, fullStateName].filter(Boolean).join(', ');
 
     return {
       place: businessName || q,
