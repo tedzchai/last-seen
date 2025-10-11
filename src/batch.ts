@@ -15,8 +15,14 @@ async function processEvent(cache: any, ev: RawEvent) {
   const llm = await llmFilter(ev);
   if (!llm.show) { setCached(cache, ev, { action:'HIDE', decidedAt:new Date().toISOString() }); return; }
 
-  // Geocode normalized display name
-  const label = llm.normalized || ev.location!;
+  // Prefer original location if it has complete address, otherwise use LLM normalized version
+  const originalLocation = ev.location!;
+  const hasCompleteAddress = /\d+\s+.+\b(St|Ave|Blvd|Rd|Road|Street|Avenue|Boulevard|Lane|Ln|Dr|Drive)\b/i.test(originalLocation) &&
+                            /,\s*[A-Za-z\s]+,?\s*[A-Z]{2}\b/.test(originalLocation);
+
+  const label = hasCompleteAddress ? originalLocation : (llm.normalized || originalLocation);
+  console.log(`📍 Using ${hasCompleteAddress ? 'original address' : 'LLM normalized'}: "${label}"`);
+
   const norm = await normalizePlace(label);
   setCached(cache, ev, {
     action:'SHOW',
