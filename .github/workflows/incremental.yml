@@ -13,7 +13,7 @@ jobs:
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       AWS_S3_BUCKET: ${{ secrets.AWS_S3_BUCKET }}
       AWS_S3_REGION: ${{ secrets.AWS_S3_REGION }}
-      LOOKBACK_HOURS: "12"
+      LOOKBACK_HOURS: "24"
       INCREMENTAL_ALLOW_LLM: "false"
     steps:
       - uses: actions/checkout@v4
