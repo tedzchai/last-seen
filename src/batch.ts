@@ -6,7 +6,7 @@ import { CFG } from './config';
 
 const iso = (d: Date) => d.toISOString();
 
-async function processEvent(cache: any, ev: RawEvent) {
+export async function processEvent(cache: any, ev: RawEvent) {
   // fast deny
   const h = heuristicFilter(ev);
   if (!h.pass) { setCached(cache, ev, { action:'HIDE', decidedAt:new Date().toISOString() }); return; }

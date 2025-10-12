@@ -1,5 +1,5 @@
 import { listEvents } from './calendar';
-import { loadCache, getCached } from './cache';
+import { loadCache, getCached, writeCache } from './cache';
 import { pickLatestCompleted, eventInstant } from './select';
 import { publish } from './publish';
 import { CFG } from './config';
@@ -13,6 +13,24 @@ export async function runIncremental() {
 
   const events = await listEvents(iso(tMin), iso(tMax));
   const cache = await loadCache();
+
+  // Process uncached events if LLM is allowed
+  if (CFG.INCREMENTAL_ALLOW_LLM) {
+    const { processEvent } = await import('./batch');
+    let hasNewEvents = false;
+
+    for (const ev of events) {
+      if (!getCached(cache, ev)) {
+        await processEvent(cache, ev);
+        hasNewEvents = true;
+      }
+    }
+
+    if (hasNewEvents) {
+      await writeCache(cache);
+      console.log('Processed new events in incremental mode');
+    }
+  }
 
   // pass cache into pickLatestCompleted
   const chosen = pickLatestCompleted(events, now, CFG.LOOKBACK_HOURS, cache);
