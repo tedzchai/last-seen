@@ -39,8 +39,9 @@ export async function llmFilter(ev: RawEvent): Promise<{show:boolean; normalized
 
 Rules:
 - SHOW if the location is a public place or business such as a cafe, bakery, restaurant, bookstore, shop, gym, park, trail, beach, venue, coworking space, library, travel hub (airport, train station), museum, gallery, or other clearly public establishment.
+- SHOW for restaurants and eateries even if they have specific street addresses - these are public businesses that people visit.
 - HIDE only if it clearly refers to a private residence, home address, apartment/condo, workplace/office (including company HQs), medical/therapy/healthcare provider, hospital, law office, courthouse, or other sensitive/personal service location.
-- When uncertain, default to SHOW rather than HIDE.
+- When uncertain, default to SHOW rather than HIDE. An address alone does not make a location private if it's clearly a business.
 - Normalize the name to a concise version (e.g., "Blackbird Cafe" instead of "Blackbird Cafe and Roastery LLC"). Remove extra legal suffixes (LLC, Inc.) and unnecessary words. Add/remove "The" if it makes the name more natural.
 - IMPORTANT: If the location includes a complete address (street address + city + state), preserve the full address exactly as provided. Do not strip address details for businesses with specific locations.
 
