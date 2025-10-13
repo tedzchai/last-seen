@@ -105,8 +105,8 @@ export async function normalizePlace(q: string): Promise<Geo> {
   if (d.addressComponents) {
     for (const c of d.addressComponents) {
       const types = c.types as string[];
-      if (types.includes("locality")) city = c.longText;
-      if (types.includes("administrative_area_level_1")) state = c.longText;
+      if (types && types.includes("locality")) city = c.longText;
+      if (types && types.includes("administrative_area_level_1")) state = c.longText;
     }
   }
 
