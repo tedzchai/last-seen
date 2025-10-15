@@ -16,8 +16,8 @@ export async function normalizePlace(q: string): Promise<Geo> {
 
   if (hasAddress && hasCity) {
     console.log(`📍 Using complete address as-is: "${q}"`);
-    // Extract business name (everything before the first comma or address)
-    const businessName = q.split(/,|\d+\s+/)[0].trim();
+    // Extract business name (everything before the first comma, opening parenthesis, or address)
+    const businessName = q.split(/,|\(|\d+\s+/)[0].trim();
     // Extract city and state from address components
     const parts = q.split(',').map(p => p.trim());
 
