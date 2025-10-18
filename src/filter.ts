@@ -44,8 +44,8 @@ Rules:
 - Context clues: Events titled "Dinner", "Lunch", "Brunch", or "Drinks" at named locations are almost always restaurants/bars and should be SHOW.
 - HIDE only if it clearly refers to a private residence, home address, apartment/condo, workplace/office (including company HQs), medical/therapy/healthcare provider, hospital, law office, courthouse, or other sensitive/personal service location.
 - When uncertain, default to SHOW rather than HIDE. An address alone does not make a location private if it's clearly a business.
-- Normalize the name to a concise version (e.g., "Blackbird Cafe" instead of "Blackbird Cafe and Roastery LLC"). Remove extra legal suffixes (LLC, Inc.) and unnecessary words. Add/remove "The" if it makes the name more natural.
-- IMPORTANT: If the location includes a complete address (street address + city + state), preserve the full address exactly as provided. Do not strip address details for businesses with specific locations.
+- Extract a clean, concise business name for display (e.g., "K1 Speed" from "K1 Speed - Indoor Go Karts, Corporate Event Venue, Team Building Activities, 160 Beacon St..."). Remove descriptive text, legal suffixes (LLC, Inc.), and marketing copy. Keep only the core business name that people would recognize.
+- For locations with full addresses, extract just the business name, not the address details.
 
 Output STRICT JSON: {"action":"SHOW|HIDE","normalized_place":"...","reason":"..."}.
 `;

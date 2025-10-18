@@ -16,9 +16,7 @@ export async function normalizePlace(q: string): Promise<Geo> {
 
   if (hasAddress && hasCity) {
     console.log(`📍 Using complete address as-is: "${q}"`);
-    // Extract business name (everything before the first comma or opening parenthesis)
-    const businessName = q.split(/,|\(/)[0].trim();
-    // Extract city and state from address components
+    // Extract city and state from address components for fast parsing
     const parts = q.split(',').map(p => p.trim());
 
     let city = undefined;
@@ -50,7 +48,7 @@ export async function normalizePlace(q: string): Promise<Geo> {
     const cityState = [city, fullStateName].filter(Boolean).join(', ');
 
     return {
-      place: businessName || q,
+      place: q, // Return full address, will be replaced by LLM normalized name
       city: cityState,
       mapUrl: `https://www.google.com/maps/search/${encodeURIComponent(q)}`,
       ok: true

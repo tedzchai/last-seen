@@ -15,20 +15,19 @@ export async function processEvent(cache: any, ev: RawEvent) {
   const llm = await llmFilter(ev);
   if (!llm.show) { setCached(cache, ev, { action:'HIDE', decidedAt:new Date().toISOString() }); return; }
 
-  // Prefer original location if it has complete address, otherwise use LLM normalized version
+  // Use original location for geocoding (accurate city/state) but LLM normalized name for display
   const originalLocation = ev.location!;
-  const hasCompleteAddress = /\d+\s+.+\b(St|Ave|Blvd|Rd|Road|Street|Avenue|Boulevard|Lane|Ln|Dr|Drive)\b/i.test(originalLocation) &&
-                            /,\s*[A-Za-z\s]+,?\s*[A-Z]{2}\b/.test(originalLocation);
+  const displayName = llm.normalized || originalLocation;
 
-  const label = hasCompleteAddress ? originalLocation : (llm.normalized || originalLocation);
-  console.log(`📍 Using ${hasCompleteAddress ? 'original address' : 'LLM normalized'}: "${label}"`);
+  console.log(`📍 Geocoding with: "${originalLocation}"`);
+  console.log(`📍 Display name: "${displayName}"`);
 
-  const norm = await normalizePlace(label);
+  const norm = await normalizePlace(originalLocation);
   setCached(cache, ev, {
     action:'SHOW',
-    place: norm.place,
-    city:  norm.city,
-    mapUrl: norm.mapUrl,
+    place: displayName,  // Use LLM's clean name for display
+    city:  norm.city,    // Use geocoded city/state
+    mapUrl: norm.mapUrl, // Use original location for map URL
     decidedAt: new Date().toISOString()
   });
 }
