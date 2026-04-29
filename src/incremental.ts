@@ -21,8 +21,16 @@ export async function runIncremental() {
 
     for (const ev of events) {
       if (!getCached(cache, ev)) {
-        await processEvent(cache, ev);
-        hasNewEvents = true;
+        try {
+          await processEvent(cache, ev);
+          hasNewEvents = true;
+        } catch (e: any) {
+          if (e?.status === 429) {
+            console.warn('OpenAI quota exceeded — skipping LLM processing. Add credits at platform.openai.com.');
+            break;
+          }
+          throw e;
+        }
       }
     }
 

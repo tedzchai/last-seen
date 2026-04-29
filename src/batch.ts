@@ -41,7 +41,15 @@ export async function runDailyBatch() {
   const cache = await loadCache();
   for (const ev of events) {
     if (getCached(cache, ev)) continue;
-    await processEvent(cache, ev);
+    try {
+      await processEvent(cache, ev);
+    } catch (e: any) {
+      if (e?.status === 429) {
+        console.warn('OpenAI quota exceeded — stopping batch early. Add credits at platform.openai.com.');
+        break;
+      }
+      throw e;
+    }
   }
   await writeCache(cache);
   console.log('Daily batch complete.');
