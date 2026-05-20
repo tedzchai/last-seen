@@ -39,8 +39,11 @@ export async function runDailyBatch() {
   const events = await listEvents(iso(tMin), iso(tMax));
 
   const cache = await loadCache();
+  console.log(`Batch window: ${iso(tMin)} → ${iso(tMax)} (${events.length} events)`);
   for (const ev of events) {
-    if (getCached(cache, ev)) continue;
+    const cached = getCached(cache, ev);
+    console.log(`  [${cached ? cached.action : 'NEW'}] ${ev.summary || '(no title)'} | loc: ${ev.location ? `"${ev.location.slice(0, 60)}"` : 'MISSING'} | ends: ${ev.end?.dateTime || ev.end?.date}`);
+    if (cached) continue;
     try {
       await processEvent(cache, ev);
     } catch (e: any) {

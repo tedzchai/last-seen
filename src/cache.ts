@@ -33,12 +33,12 @@ export function eventKey(ev: RawEvent) {
     ev.start?.date ||
     ev.end?.date ||
     'na';
-  const h = crypto
-    .createHash('sha1')
-    .update(ev.location ?? '')
-    .digest('hex')
-    .slice(0, 8);
-  return `${ev.id}|${t}|${h}`;
+  // Location is intentionally excluded from the key: the same event can be
+  // seen with or without location data across batch/incremental runs (e.g. if
+  // a calendar event is edited after the batch caches it). Including location
+  // hash caused SHOW entries to be silently shadowed by a later HIDE entry
+  // when location was absent in a subsequent API call.
+  return `${ev.id}|${t}`;
 }
 
 export async function loadCache(): Promise<Cached> {
