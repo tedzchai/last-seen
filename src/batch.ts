@@ -11,13 +11,25 @@ export async function processEvent(cache: any, ev: RawEvent) {
   const h = heuristicFilter(ev);
   if (!h.pass) { setCached(cache, ev, { action:'HIDE', decidedAt:new Date().toISOString() }); return; }
 
-  // LLM decision
-  const llm = await llmFilter(ev);
-  if (!llm.show) { setCached(cache, ev, { action:'HIDE', decidedAt:new Date().toISOString() }); return; }
+  // LLM decision — fall back to heuristic-only if quota is exceeded
+  let llmShow = true;
+  let llmNormalized: string | undefined;
+  try {
+    const llm = await llmFilter(ev);
+    llmShow = llm.show;
+    llmNormalized = llm.normalized;
+  } catch (e: any) {
+    if (e?.status === 429) {
+      console.warn(`LLM quota exceeded; using heuristic-only for: ${ev.summary}`);
+    } else {
+      throw e;
+    }
+  }
+  if (!llmShow) { setCached(cache, ev, { action:'HIDE', decidedAt:new Date().toISOString() }); return; }
 
   // Use original location for geocoding (accurate city/state) but LLM normalized name for display
   const originalLocation = ev.location!;
-  const displayName = llm.normalized || originalLocation;
+  const displayName = llmNormalized || originalLocation;
 
   console.log(`📍 Geocoding with: "${originalLocation}"`);
   console.log(`📍 Display name: "${displayName}"`);
