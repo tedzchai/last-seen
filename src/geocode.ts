@@ -1,5 +1,16 @@
 import { CFG } from './config';
 
+// If the location string starts with a venue name before a street address
+// (e.g. "Montalvo Arts Center, 15400 Montalvo Rd, Saratoga, CA 95070, USA"),
+// return just the venue name. Falls back to the full string if no venue prefix found.
+export function extractVenueName(location: string): string {
+  const parts = location.split(',').map(p => p.trim());
+  if (parts.length > 1 && !/^\d/.test(parts[0])) {
+    return parts[0];
+  }
+  return location;
+}
+
 export type Geo = {
   place: string;
   city?: string;   // actually city + state combined for display

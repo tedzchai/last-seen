@@ -2,6 +2,7 @@ import { listEvents } from './calendar';
 import { loadCache, getCached, writeCache } from './cache';
 import { pickLatestCompleted, eventInstant } from './select';
 import { publish } from './publish';
+import { extractVenueName } from './geocode';
 import { CFG } from './config';
 
 const iso = (d: Date) => d.toISOString();
@@ -60,7 +61,7 @@ export async function runIncremental() {
 
   if (c?.action === 'SHOW' && c.place) {
     await publish({
-      place: c.place,
+      place: extractVenueName(c.place),
       city: c.city,
       mapUrl: c.mapUrl,
       updated: now.toISOString(),

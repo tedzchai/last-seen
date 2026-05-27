@@ -1,6 +1,6 @@
 import { listEvents, RawEvent } from './calendar';
 import { heuristicFilter, llmFilter } from './filter';
-import { normalizePlace } from './geocode';
+import { normalizePlace, extractVenueName } from './geocode';
 import { loadCache, writeCache, getCached, setCached } from './cache';
 import { CFG } from './config';
 
@@ -29,7 +29,7 @@ export async function processEvent(cache: any, ev: RawEvent) {
 
   // Use original location for geocoding (accurate city/state) but LLM normalized name for display
   const originalLocation = ev.location!;
-  const displayName = llmNormalized || originalLocation;
+  const displayName = llmNormalized || extractVenueName(originalLocation);
 
   console.log(`📍 Geocoding with: "${originalLocation}"`);
   console.log(`📍 Display name: "${displayName}"`);
