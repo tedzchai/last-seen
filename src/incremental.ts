@@ -3,6 +3,7 @@ import { loadCache, getCached, writeCache } from './cache';
 import { pickLatestCompleted, eventInstant } from './select';
 import { publish } from './publish';
 import { extractVenueName } from './geocode';
+import { looksLikeStreetAddress } from './filter';
 import { CFG } from './config';
 
 const iso = (d: Date) => d.toISOString();
@@ -59,7 +60,7 @@ export async function runIncremental() {
   const c = getCached(cache, chosen);
   console.log("Cache lookup result:", c);
 
-  if (c?.action === 'SHOW' && c.place) {
+  if (c?.action === 'SHOW' && c.place && !looksLikeStreetAddress(extractVenueName(c.place))) {
     await publish({
       place: extractVenueName(c.place),
       city: c.city,
@@ -68,6 +69,11 @@ export async function runIncremental() {
       eventTime: eventInstant(chosen)?.toISOString()
     });
     console.log('Published from cache');
+    return;
+  }
+
+  if (c?.action === 'SHOW' && c.place && looksLikeStreetAddress(extractVenueName(c.place))) {
+    console.log(`🔒 Cached place "${c.place}" looks like a bare address; refusing to publish.`);
     return;
   }
 

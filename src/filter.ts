@@ -7,6 +7,16 @@ const denyKeywords = [
   'home','apartment','condo','residence','unit #','suite #','apt #'
 ];
 
+// A display string that is itself a street address (number + street name/suffix)
+// or that simply starts with a street number is NOT a publishable venue name.
+// The feature is "Last seen at <venue>", so a raw address must never be shown.
+const STREET_ADDRESS_RE = /\d+\s+.+\b(St|Ave|Blvd|Rd|Road|Street|Avenue|Boulevard|Lane|Ln|Dr|Drive|Way|Ct|Court|Pl|Place|Ter|Terrace|Hwy|Highway|Cir|Circle)\b/i;
+export const looksLikeStreetAddress = (s: string | undefined | null): boolean => {
+  if (!s) return false;
+  const t = s.trim();
+  return /^\d/.test(t) || STREET_ADDRESS_RE.test(t);
+};
+
 const isVirtual = (s: string) => {
   // Only reject if it's PURELY virtual (no physical address)
   const hasZoom = /(zoom|teams|meet\.google|zoom\.us)/i.test(s);
@@ -35,17 +45,19 @@ const Out = z.object({
 export async function llmFilter(ev: RawEvent): Promise<{show:boolean; normalized?:string; why?:string}> {
   const client = new OpenAI({ apiKey: CFG.OPENAI_API_KEY });
 
-  const sys = `You decide if a calendar event's location is safe to display publicly on a personal website as "Last seen at X".
+  const sys = `You decide if a calendar event's location is safe to display publicly on a personal website as "Last seen at X". This broadcasts the owner's real-time physical location to the public, so privacy is the priority: when in doubt, HIDE.
 
-Rules:
-- SHOW if the location is a public place or business such as a cafe, bakery, restaurant, bookstore, shop, gym, park, trail, beach, venue, coworking space, library, travel hub (airport, train station), museum, gallery, or other clearly public establishment.
-- SHOW for restaurants and eateries even if they have specific street addresses - these are public businesses that people visit.
-- SHOW for any location that appears to be a named business (has a business name + address) unless it's clearly a private/sensitive service.
-- Context clues: Events titled "Dinner", "Lunch", "Brunch", or "Drinks" at named locations are almost always restaurants/bars and should be SHOW.
-- HIDE only if it clearly refers to a private residence, home address, apartment/condo, workplace/office (including company HQs), medical/therapy/healthcare provider, hospital, law office, courthouse, or other sensitive/personal service location.
-- When uncertain, default to SHOW rather than HIDE. An address alone does not make a location private if it's clearly a business.
-- Extract a clean, concise business name for display (e.g., "K1 Speed" from "K1 Speed - Indoor Go Karts, Corporate Event Venue, Team Building Activities, 160 Beacon St..."). Remove descriptive text, legal suffixes (LLC, Inc.), and marketing copy. Keep only the core business name that people would recognize.
-- For locations with full addresses, extract just the business name, not the address details.
+SHOW only when the location clearly names a public establishment that anyone could walk into — e.g. a cafe, bakery, restaurant, bar, bookstore, shop, gym, park, trail, beach, music/event venue, coworking space, library, travel hub (airport, train station), museum, or gallery. To SHOW, you must be able to extract a recognizable business or venue NAME, not just an address.
+
+HIDE if any of the following apply:
+- It refers to a private residence, home, apartment, or condo.
+- It is a workplace/office (including company HQs), or a medical, therapy, healthcare, dental, hospital, legal, courthouse, or other sensitive/personal service location.
+- It is ONLY a street address, intersection, or coordinates with no recognizable public business or venue name attached (e.g. "3725 Jasmine Ave, Los Angeles, CA 90034"). A bare address is NOT safe to show even if you cannot tell what is there — most bare addresses are homes.
+- You are uncertain whether it is a public place. Default to HIDE.
+
+Naming: when you SHOW, extract a clean, concise business/venue name for display (e.g., "K1 Speed" from "K1 Speed - Indoor Go Karts, Corporate Event Venue, ..., 160 Beacon St..."). Strip descriptive text, legal suffixes (LLC, Inc.), marketing copy, and the street address. If the only name you can produce is the street address itself, that means there is no public venue name — set action to HIDE.
+
+Event titles like "Dinner", "Lunch", "Drinks", etc. are only weak hints: SHOW based on the LOCATION naming a real public venue, never on the title alone. A "Dinner" at a bare residential address is still HIDE.
 
 Output STRICT JSON: {"action":"SHOW|HIDE","normalized_place":"...","reason":"..."}.
 `;
