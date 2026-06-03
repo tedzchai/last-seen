@@ -1,7 +1,14 @@
 name: Incremental Publish
 on:
   schedule: [ { cron: "0 */3 * * *" } ]  # every 3 hours
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      lookback_hours:
+        description: "Lookback window in hours (manual re-publish; default 24)"
+        default: "24"
+      allow_llm:
+        description: "Process uncached events with the LLM (true/false)"
+        default: "true"
 jobs:
   inc:
     runs-on: ubuntu-latest
@@ -15,8 +22,8 @@ jobs:
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       AWS_S3_BUCKET: ${{ secrets.AWS_S3_BUCKET }}
       AWS_S3_REGION: ${{ secrets.AWS_S3_REGION }}
-      LOOKBACK_HOURS: "24"
-      INCREMENTAL_ALLOW_LLM: "true"
+      LOOKBACK_HOURS: ${{ github.event.inputs.lookback_hours || '24' }}
+      INCREMENTAL_ALLOW_LLM: ${{ github.event.inputs.allow_llm || 'true' }}
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v6
