@@ -2,6 +2,7 @@ import crypto from 'node:crypto';
 import { S3Client, GetObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
 import type { RawEvent } from './calendar';
 import { CFG } from './config';
+import { looksLikeUrl } from './filter';
 
 export type Cached = {
   [eventKey: string]: {
@@ -47,10 +48,27 @@ export async function loadCache(): Promise<Cached> {
       new GetObjectCommand({ Bucket: CFG.AWS_S3_BUCKET, Key: KEY })
     );
     const buf = await r.Body?.transformToByteArray();
-    return buf ? JSON.parse(Buffer.from(buf).toString('utf8')) : {};
+    const cache: Cached = buf ? JSON.parse(Buffer.from(buf).toString('utf8')) : {};
+    return selfHeal(cache);
   } catch {
     return {};
   }
+}
+
+// Drop poisoned SHOW entries whose `place` is a URL (e.g. a Luma / online-event
+// link that leaked through before URL filtering existed). Removing them here
+// means they get re-decided (and HIDden) on the next pass and a real prior
+// location is published instead, rather than the bad value sticking forever.
+function selfHeal(cache: Cached): Cached {
+  let purged = 0;
+  for (const [k, v] of Object.entries(cache)) {
+    if (v.action === 'SHOW' && looksLikeUrl(v.place)) {
+      delete cache[k];
+      purged++;
+    }
+  }
+  if (purged) console.log(`🧹 Purged ${purged} cached SHOW entr${purged === 1 ? 'y' : 'ies'} with a URL place.`);
+  return cache;
 }
 
 export async function writeCache(cache: Cached) {
