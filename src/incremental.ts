@@ -3,7 +3,7 @@ import { loadCache, getCached, writeCache } from './cache';
 import { pickLatestCompleted, eventInstant } from './select';
 import { publish } from './publish';
 import { extractVenueName } from './geocode';
-import { looksLikeStreetAddress } from './filter';
+import { looksLikeStreetAddress, looksLikeUrl } from './filter';
 import { CFG } from './config';
 
 const iso = (d: Date) => d.toISOString();
@@ -60,20 +60,24 @@ export async function runIncremental() {
   const c = getCached(cache, chosen);
   console.log("Cache lookup result:", c);
 
-  if (c?.action === 'SHOW' && c.place && !looksLikeStreetAddress(extractVenueName(c.place))) {
+  const display = c?.place ? extractVenueName(c.place) : undefined;
+
+  if (c?.action === 'SHOW' && c.place && display &&
+      (looksLikeStreetAddress(display) || looksLikeUrl(display) || looksLikeUrl(c.place))) {
+    const why = looksLikeUrl(c.place) || looksLikeUrl(display) ? 'a URL / online-event link' : 'a bare address';
+    console.log(`🔒 Cached place "${c.place}" looks like ${why}; refusing to publish.`);
+    return;
+  }
+
+  if (c?.action === 'SHOW' && c.place && display) {
     await publish({
-      place: extractVenueName(c.place),
+      place: display,
       city: c.city,
       mapUrl: c.mapUrl,
       updated: now.toISOString(),
       eventTime: eventInstant(chosen)?.toISOString()
     });
     console.log('Published from cache');
-    return;
-  }
-
-  if (c?.action === 'SHOW' && c.place && looksLikeStreetAddress(extractVenueName(c.place))) {
-    console.log(`🔒 Cached place "${c.place}" looks like a bare address; refusing to publish.`);
     return;
   }
 

@@ -1,5 +1,5 @@
 import { listEvents, RawEvent } from './calendar';
-import { heuristicFilter, llmFilter, looksLikeStreetAddress } from './filter';
+import { heuristicFilter, llmFilter, looksLikeStreetAddress, looksLikeUrl } from './filter';
 import { normalizePlace, extractVenueName } from './geocode';
 import { loadCache, writeCache, getCached, setCached } from './cache';
 import { CFG } from './config';
@@ -34,8 +34,9 @@ export async function processEvent(cache: any, ev: RawEvent) {
   // Safety net: never publish a raw street address as the "place". If the best
   // display name we have is still an address (no venue name was resolved — or the
   // LLM erred / was skipped on quota), treat it as a private location and HIDE.
-  if (looksLikeStreetAddress(displayName)) {
-    console.log(`🔒 Display name "${displayName}" looks like a bare address — hiding as private.`);
+  if (looksLikeStreetAddress(displayName) || looksLikeUrl(displayName)) {
+    const why = looksLikeUrl(displayName) ? 'a URL / online-event link' : 'a bare address';
+    console.log(`🔒 Display name "${displayName}" looks like ${why} — hiding as non-physical.`);
     setCached(cache, ev, { action:'HIDE', decidedAt:new Date().toISOString() });
     return;
   }

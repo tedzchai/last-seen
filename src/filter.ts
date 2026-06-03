@@ -17,11 +17,30 @@ export const looksLikeStreetAddress = (s: string | undefined | null): boolean =>
   return /^\d/.test(t) || STREET_ADDRESS_RE.test(t);
 };
 
+// A location that is a hyperlink, or names a virtual meeting / online-event
+// platform (Zoom, Google Meet, Luma, Eventbrite, …), is an ONLINE event — not a
+// physical place. "Last seen at https://luma.com/…" is never correct.
+const URL_RE = /(https?:\/\/|www\.)\S+/i;
+// Scheme-less link, e.g. "lu.ma/abc123": a dotted host immediately followed by a
+// "/path". Requiring the slash-path keeps real venue names ("St. Mary's", "Joe's
+// Bar, CA") from matching.
+const BARE_HOST_PATH_RE = /\b[a-z0-9-]+(\.[a-z0-9-]+)+\/\S+/i;
+const VIRTUAL_PLATFORM_RE = /(zoom\.us|zoom|microsoft teams|teams\.microsoft|teams|meet\.google|google meet|webex|hopin|lu\.ma|luma\.com|eventbrite|gather\.town|whereby|skype|hangouts)/i;
+const HAS_PHYSICAL_ADDRESS_RE = /\d+\s+.+\b(St|Ave|Blvd|Rd|Road|Street|Avenue|Boulevard|Lane|Ln|Dr|Drive)\b/i;
+
+// True when the display string is essentially a URL. Such a value is a link to
+// an online event, never a physical venue, so it must never be published.
+export const looksLikeUrl = (s: string | undefined | null): boolean => {
+  if (!s) return false;
+  const t = s.trim();
+  return URL_RE.test(t) || BARE_HOST_PATH_RE.test(t);
+};
+
 const isVirtual = (s: string) => {
-  // Only reject if it's PURELY virtual (no physical address)
-  const hasZoom = /(zoom|teams|meet\.google|zoom\.us)/i.test(s);
-  const hasPhysicalAddress = /\d+\s+.+\b(St|Ave|Blvd|Rd|Road|Street|Avenue|Boulevard|Lane|Ln|Dr|Drive)\b/i.test(s);
-  return hasZoom && !hasPhysicalAddress;
+  // Reject only if PURELY virtual: a hyperlink or a known online-event platform,
+  // with no physical street address also present in the string.
+  const virtual = looksLikeUrl(s) || VIRTUAL_PLATFORM_RE.test(s);
+  return virtual && !HAS_PHYSICAL_ADDRESS_RE.test(s);
 };
 
 export function heuristicFilter(ev: RawEvent): { pass: boolean; why?: string } {
