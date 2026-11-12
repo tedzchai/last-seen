@@ -11,22 +11,27 @@ export async function processEvent(cache: any, ev: RawEvent) {
   const h = heuristicFilter(ev);
   if (!h.pass) { setCached(cache, ev, { action:'HIDE', decidedAt:new Date().toISOString() }); return; }
 
-  // LLM decision. FAIL CLOSED: a location is only ever published when the LLM
-  // affirmatively classifies it SHOW. If the LLM can't be reached (quota/outage/
-  // error) we HIDE rather than fall back to heuristic-only, because the heuristic
-  // can't recognize every sensitive place by name — publishing a private location
-  // during an outage is the exact failure we must never allow. (Before this, a 429
-  // left llmShow=true and any named venue leaked, medical ones included.)
-  let llmShow: boolean;
+  // LLM decision. On an OpenAI QUOTA error (429) we degrade to heuristic-only,
+  // which now includes the deterministic sensitive-location denylist (optometry,
+  // medical, dental, therapy, pharmacy, vet, …) AND the publish-boundary address/
+  // URL/sensitive nets below. That keeps the feed working during an OpenAI outage
+  // without the old hole: before, a 429 fell back to heuristic-only with NO medical
+  // blocking at all, which is how "Eye Carumba Optometry" leaked. Any OTHER error
+  // fails CLOSED (HIDE) — we never publish a location we couldn't classify at all.
+  let llmShow = true;
   let llmNormalized: string | undefined;
   try {
     const llm = await llmFilter(ev);
     llmShow = llm.show;
     llmNormalized = llm.normalized;
   } catch (e: any) {
-    console.warn(`LLM classification unavailable for "${ev.summary}" (${e?.status ?? 'error'}); hiding (fail-closed).`);
-    setCached(cache, ev, { action:'HIDE', decidedAt:new Date().toISOString() });
-    throw e; // let the run decide whether to stop early (e.g. on a 429 quota error)
+    if (e?.status === 429) {
+      console.warn(`LLM quota exceeded; degrading to heuristic-only (denylist still enforced) for: ${ev.summary}`);
+    } else {
+      console.warn(`LLM classification errored for "${ev.summary}" (${e?.status ?? 'error'}); hiding (fail-closed).`);
+      setCached(cache, ev, { action:'HIDE', decidedAt:new Date().toISOString() });
+      throw e;
+    }
   }
   if (!llmShow) { setCached(cache, ev, { action:'HIDE', decidedAt:new Date().toISOString() }); return; }
 
