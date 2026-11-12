@@ -3,7 +3,7 @@ import { loadCache, getCached, writeCache } from './cache';
 import { pickLatestCompleted, eventInstant } from './select';
 import { publish } from './publish';
 import { extractVenueName } from './geocode';
-import { looksLikeStreetAddress, looksLikeUrl } from './filter';
+import { looksLikeStreetAddress, looksLikeUrl, looksLikeSensitiveLocation } from './filter';
 import { CFG } from './config';
 
 const iso = (d: Date) => d.toISOString();
@@ -63,8 +63,12 @@ export async function runIncremental() {
   const display = c?.place ? extractVenueName(c.place) : undefined;
 
   if (c?.action === 'SHOW' && c.place && display &&
-      (looksLikeStreetAddress(display) || looksLikeUrl(display) || looksLikeUrl(c.place))) {
-    const why = looksLikeUrl(c.place) || looksLikeUrl(display) ? 'a URL / online-event link' : 'a bare address';
+      (looksLikeStreetAddress(display) || looksLikeUrl(display) || looksLikeUrl(c.place) ||
+       looksLikeSensitiveLocation(display) || looksLikeSensitiveLocation(c.place) ||
+       looksLikeSensitiveLocation(c.city))) {
+    const why = looksLikeUrl(c.place) || looksLikeUrl(display) ? 'a URL / online-event link'
+      : looksLikeSensitiveLocation(display) || looksLikeSensitiveLocation(c.place) || looksLikeSensitiveLocation(c.city) ? 'a sensitive/private location'
+      : 'a bare address';
     console.log(`🔒 Cached place "${c.place}" looks like ${why}; refusing to publish.`);
     return;
   }

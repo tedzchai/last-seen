@@ -2,7 +2,7 @@ import crypto from 'node:crypto';
 import { S3Client, GetObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
 import type { RawEvent } from './calendar';
 import { CFG } from './config';
-import { looksLikeUrl } from './filter';
+import { looksLikeUrl, looksLikeSensitiveLocation } from './filter';
 
 export type Cached = {
   [eventKey: string]: {
@@ -55,19 +55,23 @@ export async function loadCache(): Promise<Cached> {
   }
 }
 
-// Drop poisoned SHOW entries whose `place` is a URL (e.g. a Luma / online-event
-// link that leaked through before URL filtering existed). Removing them here
-// means they get re-decided (and HIDden) on the next pass and a real prior
+// Drop poisoned SHOW entries that should never have been cached as publishable:
+// a URL (a Luma / online-event link that leaked before URL filtering existed), or
+// a sensitive private destination (e.g. "Eye Carumba Optometry", which leaked on
+// 2026-11-05 before the sensitive-location denylist existed). Removing them here
+// means they get re-decided (and HIDden) on the next pass and a real prior public
 // location is published instead, rather than the bad value sticking forever.
 function selfHeal(cache: Cached): Cached {
   let purged = 0;
   for (const [k, v] of Object.entries(cache)) {
-    if (v.action === 'SHOW' && looksLikeUrl(v.place)) {
+    if (v.action === 'SHOW' &&
+        (looksLikeUrl(v.place) ||
+         looksLikeSensitiveLocation(v.place) || looksLikeSensitiveLocation(v.city))) {
       delete cache[k];
       purged++;
     }
   }
-  if (purged) console.log(`🧹 Purged ${purged} cached SHOW entr${purged === 1 ? 'y' : 'ies'} with a URL place.`);
+  if (purged) console.log(`🧹 Purged ${purged} poisoned cached SHOW entr${purged === 1 ? 'y' : 'ies'} (URL or sensitive place).`);
   return cache;
 }
 

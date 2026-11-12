@@ -4,8 +4,53 @@ import type { RawEvent } from './calendar';
 import { CFG } from './config';
 
 const denyKeywords = [
-  'home','apartment','condo','residence','unit #','suite #','apt #'
+  'home','apartment','condo','residence','unit #','suite #','apt #','townhouse','duplex'
 ];
+
+// Deterministic, fail-closed denylist for SENSITIVE locations that must NEVER be
+// broadcast publicly as "Last seen at X" — medical/health, personal-care, and
+// other private-by-nature destinations. This runs in the heuristic layer BEFORE
+// the LLM, so a sensitive place is blocked even if the LLM misclassifies it (an
+// optometry practice reads like a retail eyewear shop — "Eye Carumba Optometry"
+// leaked on 2026-11-05) or the LLM can't be reached at all (quota/outage). Short
+// tokens use word boundaries so they can't match inside unrelated words (e.g.
+// 'lab' inside 'collaborate'); multi-word terms are matched as phrases.
+const SENSITIVE_LOCATION_RE = new RegExp(
+  '\\b(' + [
+    // vision / eye care
+    'optometry', 'optometrist', 'optometric', 'optical', 'ophthalmology',
+    'ophthalmologist', 'eye care', 'eyecare', 'eye clinic', 'vision center',
+    // general medical
+    'clinic', 'hospital', 'medical center', 'medical group', 'medical office',
+    'health center', 'healthcare', 'urgent care', 'emergency room', 'infusion',
+    'dialysis', 'surgery center', 'surgical', 'radiology', 'imaging center',
+    'x-ray', 'mri', 'ct scan', 'laboratory', 'labcorp', 'quest diagnostics',
+    'diagnostic', 'infirmary', 'urgent-care',
+    // dental
+    'dentist', 'dental', 'orthodontic', 'orthodontist', 'endodontic',
+    'periodontic', 'oral surgery',
+    // practitioners / specialties
+    'physician', 'doctor', 'pediatric', 'pediatrician', 'dermatology',
+    'dermatologist', 'cardiology', 'cardiologist', 'oncology', 'oncologist',
+    'neurology', 'neurologist', 'urology', 'urologist', 'gynecology',
+    'gynecologist', 'ob/gyn', 'obgyn', 'podiatry', 'podiatrist', 'chiropractic',
+    'chiropractor', 'physical therapy', 'psychiatry', 'psychiatrist',
+    'psychology', 'psychologist', 'therapy', 'therapist', 'counseling',
+    'mental health', 'rehab', 'rehabilitation',
+    // reproductive / sensitive
+    'fertility', 'ivf', 'planned parenthood', 'obstetric', 'maternity',
+    // pharmacy / veterinary
+    'pharmacy', 'veterinary', 'veterinarian', 'animal hospital',
+  ].join('|') + ')\\b',
+  'i'
+);
+
+// True when any field of the event (or a resolved display name) names a sensitive
+// private destination that must never be published. Fail-closed: when in doubt, hide.
+export const looksLikeSensitiveLocation = (s: string | undefined | null): boolean => {
+  if (!s) return false;
+  return SENSITIVE_LOCATION_RE.test(s);
+};
 
 // A display string that is itself a street address (number + street name/suffix)
 // or that simply starts with a street number is NOT a publishable venue name.
@@ -52,6 +97,11 @@ export function heuristicFilter(ev: RawEvent): { pass: boolean; why?: string } {
   // Only block obvious residential keywords
   if (denyKeywords.some(k => blob.includes(k))) return { pass:false, why:'denylist' };
 
+  // Fail-closed block of sensitive private destinations (medical/health, dental,
+  // therapy, pharmacy, vet, etc.) regardless of the LLM. This is the layer that
+  // stops an optometry clinic / doctor's office from ever being broadcast.
+  if (SENSITIVE_LOCATION_RE.test(blob)) return { pass:false, why:'sensitive-location' };
+
   return { pass:true };
 }
 
@@ -70,7 +120,7 @@ SHOW only when the location clearly names a public establishment that anyone cou
 
 HIDE if any of the following apply:
 - It refers to a private residence, home, apartment, or condo.
-- It is a workplace/office (including company HQs), or a medical, therapy, healthcare, dental, hospital, legal, courthouse, or other sensitive/personal service location.
+- It is a workplace/office (including company HQs), or a medical, therapy, healthcare, dental, hospital, legal, courthouse, or other sensitive/personal service location. This explicitly includes OPTOMETRY / optical / eye-care / vision / ophthalmology practices (they read like eyewear shops but are healthcare — HIDE), plus pharmacies, labs/diagnostics/imaging, veterinary clinics, and any "clinic" or "center" that is medical. An eyewear or medical name is HIDE even if it sounds like a store.
 - It is ONLY a street address, intersection, or coordinates with no recognizable public business or venue name attached (e.g. "3725 Jasmine Ave, Los Angeles, CA 90034"). A bare address is NOT safe to show even if you cannot tell what is there — most bare addresses are homes.
 - You are uncertain whether it is a public place. Default to HIDE.
 
